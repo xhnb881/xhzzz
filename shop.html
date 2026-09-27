@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小涵下载交流 · 金币商城</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/icons.js"></script>
+</head>
+<body>
+  <nav class="topbar" id="topbar">
+    <a href="/" class="topbar-brand">
+      <div class="logo-box" data-icon="logo"></div>
+      <b>小涵下载交流</b>
+    </a>
+    <div class="topbar-nav">
+      <a href="/download" class="topbar-link"><span data-icon="download"></span>下载社区</a>
+      <a href="/community" class="topbar-link"><span data-icon="message"></span>用户交流</a>
+      <a href="/shop" class="topbar-link active"><span data-icon="coin"></span>金币商城</a>
+      <a href="/me" class="topbar-link"><span data-icon="user"></span>我的</a>
+      <a href="/admin" class="topbar-link" id="adminLink" style="display:none;"><span data-icon="settings"></span>管理后台</a>
+    </div>
+    <div class="topbar-right">
+      <a href="/shop" class="coin-pill" title="金币商城"><span data-icon="coin"></span><span id="navCoins">0</span></a>
+      <div class="avatar" id="navAvatar">U</div>
+      <button class="btn-logout" onclick="logout()"><span data-icon="logout"></span><span>退出</span></button>
+    </div>
+  </nav>
+
+  <div class="container page-enter">
+    <div class="page-head">
+      <h2><span data-icon="coin"></span>金币商城</h2>
+      <div class="actions">
+        <button class="btn btn-sm btn-gold" id="checkinBtn" onclick="checkin()"><span data-icon="gift"></span>每日签到</button>
+      </div>
+    </div>
+
+    <!-- 金币展示卡 -->
+    <div class="card card-glow mb-6" style="display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="shop-icon" style="margin:0;width:56px;height:56px;border-radius:14px;background:var(--grad-gold);box-shadow:0 8px 24px rgba(251,191,36,0.4);">
+          <span data-icon="coin"></span>
+        </div>
+        <div>
+          <div style="font-size:13px;color:var(--text-3);">我的金币</div>
+          <div style="font-size:32px;font-weight:800;color:var(--gold);line-height:1.2;" id="myCoins">0</div>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:4px;" id="lastCheckin">今日尚未签到</div>
+        <div style="font-size:11px;color:var(--text-4);">连续签到获得更多金币奖励</div>
+      </div>
+    </div>
+
+    <!-- VIP 兑换入口 -->
+    <div class="card mb-6" style="background:linear-gradient(135deg,rgba(251,191,36,0.15),rgba(245,158,11,0.08));border-color:rgba(251,191,36,0.4);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="shop-icon" style="margin:0;width:48px;height:48px;background:var(--grad-gold);color:#1a1430;">
+          <span data-icon="crown"></span>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--gold);">开通 VIP 会员</div>
+          <div style="font-size:13px;color:var(--text-3);">金色昵称 · 专属标识 · 30 天</div>
+        </div>
+      </div>
+      <button class="btn btn-gold" onclick="redeemVip()"><span data-icon="crown"></span>输入兑换码开通VIP</button>
+    </div>
+
+    <!-- 商品网格 -->
+    <h3 style="margin:24px 0 16px;font-size:16px;display:flex;align-items:center;gap:8px;"><span data-icon="bag"></span>兑换商品</h3>
+    <div class="grid grid-auto" id="shopGrid">
+      <div class="loader-wrap"><div class="loader"></div><div>加载中...</div></div>
+    </div>
+
+    <div class="empty hidden" id="emptyShop">
+      <div class="empty-icon" data-icon="bag"></div>
+      <h3>商城暂无商品</h3>
+      <p>请稍后再来查看</p>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/download" class="bn-item"><span data-icon="download"></span><span>下载</span></a>
+      <a href="/community" class="bn-item"><span data-icon="message"></span><span>社区</span></a>
+      <a href="/shop" class="bn-item active"><span data-icon="coin"></span><span>商城</span></a>
+      <a href="/me" class="bn-item"><span data-icon="user"></span><span>我的</span></a>
+    </div>
+  </nav>
+
+  <!-- 兑换结果模态 -->
+  <div class="modal-mask hidden" id="resultModal">
+    <div class="modal" style="text-align:center;">
+      <div class="modal-head">
+        <h3 id="resultTitle">兑换成功</h3>
+        <button class="modal-close" onclick="closeResult()">✕</button>
+      </div>
+      <div id="resultBody"></div>
+    </div>
+  </div>
+
+  <script>
+    renderIcons();
+    let allItems = [];
+    let currentUser = null;
+
+    async function loadUser() {
+      try {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+          currentUser = await res.json();
+          document.getElementById('navCoins').textContent = currentUser.coins || 0;
+          document.getElementById('myCoins').textContent = currentUser.coins || 0;
+          const av = document.getElementById('navAvatar');
+          if (currentUser.avatar) av.innerHTML = `<img src="${currentUser.avatar}" alt="">`;
+          else av.textContent = (currentUser.display_name || currentUser.username || 'U').charAt(0).toUpperCase();
+          if (currentUser.isAdmin) document.getElementById('adminLink').style.display = '';
+          if (currentUser.last_checkin) {
+            const today = new Date().toISOString().slice(0, 10);
+            const last = currentUser.last_checkin.slice(0, 10);
+            document.getElementById('lastCheckin').textContent = last === today ? '今日已签到 ✓' : '今日尚未签到';
+          }
+        } else { location.href = '/login'; return; }
+      } catch (e) {}
+    }
+
+    async function loadItems() {
+      try {
+        const res = await fetch('/api/shop');
+        allItems = await res.json();
+        renderItems();
+      } catch (e) {
+        document.getElementById('shopGrid').innerHTML = '<div class="empty"><p>加载失败，请刷新重试</p></div>';
+      }
+    }
+
+    function renderItems() {
+      const grid = document.getElementById('shopGrid');
+      const empty = document.getElementById('emptyShop');
+      if (allItems.length === 0) {
+        grid.innerHTML = ''; empty.classList.remove('hidden'); return;
+      }
+      empty.classList.add('hidden');
+      grid.innerHTML = allItems.map(item => {
+        const stock = item.stock;
+        const stockHtml = stock !== null && stock !== undefined
+          ? `<div class="stock">剩余 <span class="num">${stock}</span> 件</div>`
+          : `<div class="stock" style="color:var(--text-4);">不限量</div>`;
+        return `
+        <div class="shop-card">
+          <div class="shop-icon"><span data-icon="${item.icon_type || 'gift'}"></span></div>
+          <h3>${escapeHtml(item.title)}</h3>
+          <p class="desc">${escapeHtml(item.description || '')}</p>
+          <div class="cost"><span data-icon="coin"></span><span>${item.cost}</span></div>
+          ${stockHtml}
+          <button class="btn btn-block" onclick="buyItem(${item.id})"><span data-icon="bag"></span>立即兑换</button>
+        </div>`;
+      }).join('');
+      renderIcons();
+    }
+
+    function escapeHtml(s) {
+      return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    async function checkin() {
+      const btn = document.getElementById('checkinBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="loader"></span> 签到中';
+      try {
+        const res = await fetch('/api/coins/claim', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('navCoins').textContent = data.coins;
+          document.getElementById('myCoins').textContent = data.coins;
+          document.getElementById('lastCheckin').textContent = '今日已签到 ✓';
+          showResult('签到成功', `<div style="font-size:64px;margin:8px 0;">🎉</div><p style="font-size:18px;color:var(--gold);font-weight:700;">+${data.earned} 金币</p>`);
+          toast(`签到成功，获得 ${data.earned} 金币`, 'success');
+        } else { toast(data.error || '签到失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+      btn.disabled = false; btn.innerHTML = '<span data-icon="gift"></span>每日签到'; renderIcons();
+    }
+
+    async function buyItem(id) {
+      if (!confirm('确定要兑换这个商品吗？')) return;
+      try {
+        const res = await fetch(`/api/shop/${id}/exchange`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quantity: 1 }) });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('navCoins').textContent = data.coins;
+          document.getElementById('myCoins').textContent = data.coins;
+          loadItems();
+          if (data.keys && data.keys.length) {
+            const keysHtml = data.keys.map(k => `<div class="record"><div class="icon-box"><span data-icon="key"></span></div><div class="body"><div class="title">卡密已生成</div><div class="keys">${escapeHtml(k)}</div></div><button class="icon-btn" onclick="copyText('${escapeHtml(k)}')"><span data-icon="copy"></span></button></div>`).join('');
+            showResult('兑换成功', keysHtml + `<button class="btn btn-block mt-4" onclick="closeResult();location.href='/me'"><span data-icon="check"></span>查看我的卡密</button>`);
+          } else {
+            showResult('兑换成功', `<div style="font-size:64px;margin:8px 0;">🎉</div><p style="font-size:18px;color:var(--success);font-weight:700;">兑换成功</p><p style="color:var(--text-3);margin-top:8px;">${escapeHtml(data.message || '')}</p>`);
+          }
+          toast('兑换成功', 'success');
+        } else { toast(data.error || '兑换失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    async function redeemVip() {
+      const code = prompt('请输入 VIP 兑换码：');
+      if (!code) return;
+      try {
+        const res = await fetch('/api/vip/redeem', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+        const data = await res.json();
+        if (data.success) {
+          showResult('VIP 开通成功', `<div style="font-size:64px;margin:8px 0;">👑</div><p style="font-size:18px;color:var(--gold);font-weight:700;">VIP 已开通</p><p style="color:var(--text-3);margin-top:8px;">到期时间：${escapeHtml(data.vip_expires_at || '')}</p>`);
+          toast('VIP 开通成功', 'success');
+        } else { toast(data.error || '兑换失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    function showResult(title, body) {
+      document.getElementById('resultTitle').textContent = title;
+      document.getElementById('resultBody').innerHTML = body;
+      document.getElementById('resultModal').classList.remove('hidden');
+      renderIcons();
+    }
+    function closeResult() { document.getElementById('resultModal').classList.add('hidden'); }
+    document.getElementById('resultModal').addEventListener('click', (e) => { if (e.target.id === 'resultModal') closeResult(); });
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => toast('已复制', 'success'));
+    }
+
+    function logout() { fetch('/api/logout', { method: 'POST' }).then(() => location.href = '/login'); }
+
+    (async () => {
+      await loadUser();
+      if (!currentUser) return;
+      await loadItems();
+    })();
+  </script>
+</body>
+</html>

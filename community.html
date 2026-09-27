@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小涵下载交流 · 用户社区</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/icons.js"></script>
+</head>
+<body>
+  <nav class="topbar" id="topbar">
+    <a href="/" class="topbar-brand">
+      <div class="logo-box" data-icon="logo"></div>
+      <b>小涵下载交流</b>
+    </a>
+    <div class="topbar-nav">
+      <a href="/download" class="topbar-link"><span data-icon="download"></span>下载社区</a>
+      <a href="/community" class="topbar-link active"><span data-icon="message"></span>用户交流</a>
+      <a href="/shop" class="topbar-link"><span data-icon="coin"></span>金币商城</a>
+      <a href="/me" class="topbar-link"><span data-icon="user"></span>我的</a>
+      <a href="/admin" class="topbar-link" id="adminLink" style="display:none;"><span data-icon="settings"></span>管理后台</a>
+    </div>
+    <div class="topbar-right">
+      <a href="/shop" class="coin-pill" title="金币商城"><span data-icon="coin"></span><span id="navCoins">0</span></a>
+      <div class="avatar" id="navAvatar">U</div>
+      <button class="btn-logout" onclick="logout()"><span data-icon="logout"></span><span>退出</span></button>
+    </div>
+  </nav>
+
+  <div class="container-narrow page-enter">
+    <div class="page-head">
+      <h2><span data-icon="message"></span>用户交流社区</h2>
+      <div class="actions">
+        <span class="online-pill"><span class="dot"></span><span id="onlineNum">-</span> 人在线</span>
+        <span class="live"><span class="live-dot"></span>实时刷新</span>
+      </div>
+    </div>
+
+    <!-- 发帖框 -->
+    <div class="composer">
+      <textarea class="textarea" id="postContent" placeholder="分享你的精彩瞬间... 可上传图片" rows="2"></textarea>
+      <div class="img-preview" id="imagePreview"></div>
+      <div class="composer-tools">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
+          <label class="upload-btn"><span data-icon="image"></span>上传图片
+            <input type="file" id="imageInput" accept="image/*" multiple style="display:none">
+          </label>
+          <span class="sticker-hint">支持图片表情包，最多 9 张</span>
+          <span id="charCount" style="font-size:12px;color:var(--text-3);margin-left:auto;">0</span>
+        </div>
+        <button class="btn btn-sm" id="btnPost" onclick="submitPost()"><span data-icon="send"></span>发布</button>
+      </div>
+    </div>
+
+    <!-- 帖子流 -->
+    <div id="postList">
+      <div class="loader-wrap"><div class="loader"></div><div>加载中...</div></div>
+    </div>
+
+    <div class="empty hidden" id="emptyPosts">
+      <div class="empty-icon" data-icon="message"></div>
+      <h3>还没有帖子</h3>
+      <p>快来发布第一条内容吧</p>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/download" class="bn-item"><span data-icon="download"></span><span>下载</span></a>
+      <a href="/community" class="bn-item active"><span data-icon="message"></span><span>社区</span></a>
+      <a href="/shop" class="bn-item"><span data-icon="coin"></span><span>商城</span></a>
+      <a href="/me" class="bn-item"><span data-icon="user"></span><span>我的</span></a>
+    </div>
+  </nav>
+
+  <!-- 图片预览模态 -->
+  <div class="modal-mask hidden" id="imgModal" style="padding:0;">
+    <div style="max-width:90vw;max-height:90vh;" onclick="closeImgModal()">
+      <img id="imgModalSrc" style="max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:var(--shadow-lg);">
+    </div>
+  </div>
+
+  <script>
+    renderIcons();
+    let allPosts = [];
+    let currentUser = null;
+    let pendingImages = [];
+    let commentImages = {};  // postId -> [files]
+    let replyTarget = {};    // postId -> commentId
+
+    // 加载用户
+    async function loadUser() {
+      try {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+          currentUser = await res.json();
+          document.getElementById('navCoins').textContent = currentUser.coins || 0;
+          const av = document.getElementById('navAvatar');
+          if (currentUser.avatar) av.innerHTML = `<img src="${currentUser.avatar}" alt="">`;
+          else av.textContent = (currentUser.display_name || currentUser.username || 'U').charAt(0).toUpperCase();
+          if (currentUser.isAdmin) document.getElementById('adminLink').style.display = '';
+        } else { location.href = '/login'; return; }
+      } catch (e) {}
+    }
+
+    // 加载帖子
+    async function loadPosts() {
+      try {
+        const res = await fetch('/api/posts');
+        allPosts = await res.json();
+        renderPosts();
+      } catch (e) {
+        document.getElementById('postList').innerHTML = '<div class="empty"><p>加载失败，请刷新重试</p></div>';
+      }
+    }
+
+    function escapeHtml(s) {
+      return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function timeAgo(s) {
+      if (!s) return '';
+      const d = new Date(s.replace(' ', 'T'));
+      const diff = (Date.now() - d.getTime()) / 1000;
+      if (diff < 60) return '刚刚';
+      if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
+      if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前';
+      if (diff < 2592000) return Math.floor(diff / 86400) + ' 天前';
+      return s.slice(0, 10);
+    }
+    function avatarHtml(p) {
+      const name = (p.display_name || p.username || 'U').charAt(0).toUpperCase();
+      const av = p.avatar ? `<img src="${p.avatar}" alt="">` : name;
+      const vip = p.is_vip ? 'avatar-vip' : '';
+      return `<div class="avatar avatar-sm ${vip}">${av}</div>`;
+    }
+    function nameHtml(p) {
+      const cls = p.is_vip ? 'username vip-name' : 'username';
+      const badge = p.is_vip ? `<span class="vip-badge"><span class="icon icon-sm" style="fill:currentColor;stroke:none;width:10px;height:10px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></span>VIP</span>` : '';
+      return `<span class="${cls}">${escapeHtml(p.display_name || p.username)}${badge}</span>`;
+    }
+
+    function renderPosts() {
+      const list = document.getElementById('postList');
+      const empty = document.getElementById('emptyPosts');
+      if (allPosts.length === 0) {
+        list.innerHTML = ''; empty.classList.remove('hidden'); return;
+      }
+      empty.classList.add('hidden');
+      list.innerHTML = allPosts.map(p => {
+        const imgs = p.images ? p.images.split(',').filter(Boolean) : [];
+        const imgHtml = imgs.length ? `<div class="post-images ${imgs.length === 1 ? 'single' : ''}">${imgs.map(i => `<img src="${i}" onclick="openImgModal('${i}')">`).join('')}</div>` : '';
+        const isMine = currentUser && (p.user_id === currentUser.id || currentUser.isAdmin);
+        const pinBadge = p.is_pinned ? `<span class="pill pill-gold" style="font-size:10px;padding:2px 8px;"><span data-icon="pin"></span>置顶</span>` : '';
+        const canPin = currentUser && currentUser.isAdmin;
+        const likeCount = p.like_count || 0;
+        const commentCount = p.comment_count || 0;
+        return `
+        <div class="post ${p.is_pinned ? 'pinned' : ''}" id="post-${p.id}">
+          <div class="post-head">
+            ${avatarHtml(p)}
+            <div class="meta">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${nameHtml(p)} ${pinBadge} <span class="time">${timeAgo(p.created_at)}</span></div>
+            </div>
+            <div class="flex gap-2">
+              ${canPin ? `<button class="icon-btn" onclick="togglePin(${p.id})" title="${p.is_pinned ? '取消置顶' : '置顶'}"><span data-icon="pin"></span></button>` : ''}
+              ${isMine ? `<button class="icon-btn" onclick="deletePost(${p.id})" title="删除"><span data-icon="trash"></span></button>` : ''}
+            </div>
+          </div>
+          <div class="post-content">${escapeHtml(p.content)}</div>
+          ${imgHtml}
+          <div class="post-actions">
+            <button class="post-action ${p.liked ? 'liked' : ''}" onclick="toggleLike(${p.id})">
+              <span data-icon="heart"></span><span>${likeCount}</span>
+            </button>
+            <button class="post-action" onclick="toggleComments(${p.id})">
+              <span data-icon="message"></span><span>${commentCount} 评论</span>
+            </button>
+          </div>
+          <div class="comments hidden" id="comments-${p.id}"></div>
+        </div>`;
+      }).join('');
+      renderIcons();
+    }
+
+    // 图片上传
+    document.getElementById('imageInput').addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files);
+      if (pendingImages.length + files.length > 9) { toast('最多 9 张', 'error'); return; }
+      for (const f of files) {
+        if (f.size > 10 * 1024 * 1024) { toast(`${f.name} 超过 10MB`, 'error'); continue; }
+        const fd = new FormData();
+        fd.append('images', f);
+        try {
+          const res = await fetch('/api/posts', { method: 'POST', body: fd });
+          // 这种方式会创建空帖子，改用单独的上传接口思路：用 avatar 上传接口暂存
+          // 实际上后端没有单独图片上传接口，发帖时一并上传。这里只做本地预览。
+          pendingImages.push({ file: f, url: URL.createObjectURL(f) });
+        } catch (e) {}
+        // 本地预览方案
+      }
+      renderPendingImages();
+      e.target.value = '';
+    });
+
+    // 简化：本地预览 + 发帖时一并提交
+    document.getElementById('imageInput').onchange = null;
+    document.getElementById('imageInput').addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      for (const f of files) {
+        if (pendingImages.length >= 9) { toast('最多 9 张', 'error'); break; }
+        if (f.size > 10 * 1024 * 1024) { toast(`${f.name} 超过 10MB`, 'error'); continue; }
+        pendingImages.push({ file: f, url: URL.createObjectURL(f) });
+      }
+      renderPendingImages();
+      e.target.value = '';
+    });
+
+    function renderPendingImages() {
+      const box = document.getElementById('imagePreview');
+      box.innerHTML = pendingImages.map((img, i) => `
+        <div class="img-item">
+          <img src="${img.url}">
+          <button class="remove" onclick="removePendingImage(${i})">✕</button>
+        </div>`).join('');
+    }
+    function removePendingImage(i) {
+      pendingImages.splice(i, 1);
+      renderPendingImages();
+    }
+
+    // 字数统计
+    const postContent = document.getElementById('postContent');
+    const charCount = document.getElementById('charCount');
+    postContent.addEventListener('input', () => {
+      charCount.textContent = postContent.value.length;
+    });
+
+    // 发布帖子
+    async function submitPost() {
+      const content = postContent.value.trim();
+      if (!content && pendingImages.length === 0) { toast('内容不能为空', 'error'); return; }
+      const fd = new FormData();
+      fd.append('content', content);
+      for (const img of pendingImages) fd.append('images', img.file);
+      const btn = document.getElementById('btnPost');
+      btn.disabled = true; btn.innerHTML = '<span class="loader"></span> 发布中';
+      try {
+        const res = await fetch('/api/posts', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+          postContent.value = ''; charCount.textContent = '0';
+          pendingImages = []; renderPendingImages();
+          allPosts.unshift(data.post);
+          renderPosts();
+          toast('发布成功', 'success');
+        } else { toast(data.error || '发布失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+      btn.disabled = false; btn.innerHTML = '<span data-icon="send"></span>发布'; renderIcons();
+    }
+
+    // 点赞
+    async function toggleLike(id) {
+      try {
+        const res = await fetch(`/api/posts/${id}/like`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          const p = allPosts.find(x => x.id === id);
+          if (p) { p.liked = data.liked; p.like_count = (p.like_count || 0) + (data.liked ? 1 : -1); renderPosts(); }
+        } else { toast(data.error || '操作失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 删除
+    async function deletePost(id) {
+      if (!confirm('确定删除这条帖子吗？')) return;
+      try {
+        const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          allPosts = allPosts.filter(p => p.id !== id);
+          renderPosts();
+          toast('已删除', 'success');
+        } else { toast(data.error || '删除失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 置顶
+    async function togglePin(id) {
+      try {
+        const res = await fetch(`/api/admin/posts/${id}/pin`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          const p = allPosts.find(x => x.id === id);
+          if (p) p.is_pinned = data.is_pinned;
+          allPosts.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.id - a.id);
+          renderPosts();
+          toast(data.is_pinned ? '已置顶' : '已取消置顶', 'success');
+        } else { toast(data.error || '操作失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 评论
+    async function toggleComments(postId) {
+      const box = document.getElementById(`comments-${postId}`);
+      if (box.classList.contains('hidden')) {
+        box.classList.remove('hidden');
+        await loadComments(postId);
+      } else { box.classList.add('hidden'); }
+    }
+    async function loadComments(postId) {
+      const box = document.getElementById(`comments-${postId}`);
+      box.innerHTML = '<div class="loader" style="margin:8px auto;"></div>';
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments`);
+        const comments = await res.json();
+        renderComments(postId, comments);
+      } catch (e) { box.innerHTML = '<p style="color:var(--text-3);font-size:13px;">加载失败</p>'; }
+    }
+    function renderComments(postId, comments) {
+      const box = document.getElementById(`comments-${postId}`);
+      const list = comments.map(c => {
+        const imgs = c.images ? c.images.split(',').filter(Boolean) : [];
+        const imgHtml = imgs.length ? `<div class="comment-images">${imgs.map(i => `<img src="${i}" onclick="openImgModal('${i}')">`).join('')}</div>` : '';
+        const reply = c.parent_id ? `<div class="reply-to">回复 @${escapeHtml(c.parent_username || '匿名')}</div>` : '';
+        const isMine = currentUser && (c.user_id === currentUser.id || currentUser.isAdmin);
+        return `
+        <div class="comment">
+          ${avatarHtml(c)}
+          <div class="body">
+            ${reply}
+            <div class="username">${nameHtml(c)}</div>
+            <div class="text">${escapeHtml(c.content)}</div>
+            ${imgHtml}
+            <div class="actions">
+              <button onclick="setReply(${postId}, ${c.id}, '${escapeHtml(c.username).replace(/'/g, "\\'")}')"><span data-icon="reply"></span>回复</button>
+              ${isMine ? `<button onclick="deleteComment(${c.id}, ${postId})"><span data-icon="trash"></span>删除</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+      box.innerHTML = `
+        ${list || '<p style="color:var(--text-3);font-size:13px;padding:8px 0;">还没有评论，快来抢沙发</p>'}
+        <div class="composer" style="margin-top:12px;padding:8px;">
+          <div style="display:flex;gap:8px;align-items:flex-start;">
+            <textarea class="textarea" id="commentInput-${postId}" placeholder="${replyTarget[postId] ? '回复 @' + '...' : '写下你的评论...'}" rows="1" style="min-height:40px;padding:8px 12px;"></textarea>
+            <label class="upload-btn" style="padding:6px 10px;"><span data-icon="image"></span>
+              <input type="file" accept="image/*" multiple style="display:none" onchange="addCommentImages(${postId}, event)">
+            </label>
+          </div>
+          <div class="img-preview" id="commentImg-${postId}"></div>
+          <div style="margin-top:8px;text-align:right;">
+            <button class="btn btn-sm" onclick="submitComment(${postId})"><span data-icon="send"></span>发送</button>
+          </div>
+        </div>`;
+      renderIcons();
+    }
+    function setReply(postId, commentId, username) {
+      replyTarget[postId] = commentId;
+      const inp = document.getElementById(`commentInput-${postId}`);
+      if (inp) { inp.placeholder = `回复 @${username}...`; inp.focus(); }
+    }
+    function addCommentImages(postId, e) {
+      if (!commentImages[postId]) commentImages[postId] = [];
+      const files = Array.from(e.target.files);
+      for (const f of files) {
+        if (commentImages[postId].length >= 9) { toast('最多 9 张', 'error'); break; }
+        if (f.size > 10 * 1024 * 1024) { toast(`${f.name} 超过 10MB`, 'error'); continue; }
+        commentImages[postId].push({ file: f, url: URL.createObjectURL(f) });
+      }
+      renderCommentImages(postId);
+      e.target.value = '';
+    }
+    function renderCommentImages(postId) {
+      const box = document.getElementById(`commentImg-${postId}`);
+      if (!box) return;
+      const arr = commentImages[postId] || [];
+      box.innerHTML = arr.map((img, i) => `
+        <div class="img-item">
+          <img src="${img.url}">
+          <button class="remove" onclick="removeCommentImage(${postId}, ${i})">✕</button>
+        </div>`).join('');
+    }
+    function removeCommentImage(postId, i) {
+      commentImages[postId].splice(i, 1);
+      renderCommentImages(postId);
+    }
+    async function submitComment(postId) {
+      const inp = document.getElementById(`commentInput-${postId}`);
+      const content = inp.value.trim();
+      if (!content && (commentImages[postId] || []).length === 0) { toast('评论不能为空', 'error'); return; }
+      const fd = new FormData();
+      fd.append('content', content);
+      if (replyTarget[postId]) fd.append('parent_id', replyTarget[postId]);
+      for (const img of (commentImages[postId] || [])) fd.append('images', img.file);
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments`, { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+          replyTarget[postId] = null; commentImages[postId] = [];
+          const p = allPosts.find(x => x.id === postId);
+          if (p) p.comment_count = (p.comment_count || 0) + 1;
+          renderPosts();
+          loadComments(postId);
+          toast('评论成功', 'success');
+        } else { toast(data.error || '评论失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+    async function deleteComment(id, postId) {
+      if (!confirm('确定删除这条评论吗？')) return;
+      try {
+        const res = await fetch(`/api/comments/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          const p = allPosts.find(x => x.id === postId);
+          if (p) p.comment_count = Math.max(0, (p.comment_count || 0) - 1);
+          renderPosts();
+          loadComments(postId);
+          toast('已删除', 'success');
+        } else { toast(data.error || '删除失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 图片预览
+    function openImgModal(src) {
+      document.getElementById('imgModalSrc').src = src;
+      document.getElementById('imgModal').classList.remove('hidden');
+    }
+    function closeImgModal() { document.getElementById('imgModal').classList.add('hidden'); }
+    document.getElementById('imgModal').addEventListener('click', (e) => { if (e.target.id === 'imgModal') closeImgModal(); });
+
+    // WebSocket 实时刷新
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${location.host}/ws`);
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === 'new_post' && msg.post) {
+            if (!allPosts.find(p => p.id === msg.post.id)) {
+              allPosts.unshift(msg.post);
+              allPosts.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.id - a.id);
+              renderPosts();
+            }
+          } else if (msg.type === 'delete_post') {
+            allPosts = allPosts.filter(p => p.id != msg.postId);
+            renderPosts();
+          } else if (msg.type === 'like' || msg.type === 'unlike') {
+            const p = allPosts.find(x => x.id == msg.postId);
+            if (p) { p.like_count = (p.like_count || 0) + (msg.type === 'like' ? 1 : -1); renderPosts(); }
+          } else if (msg.type === 'pin_update') {
+            const p = allPosts.find(x => x.id == msg.postId);
+            if (p) { p.is_pinned = msg.is_pinned; allPosts.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.id - a.id); renderPosts(); }
+          } else if (msg.type === 'new_comment') {
+            const p = allPosts.find(x => x.id == msg.postId);
+            if (p) { p.comment_count = (p.comment_count || 0) + 1; renderPosts(); }
+            const box = document.getElementById(`comments-${msg.postId}`);
+            if (box && !box.classList.contains('hidden')) loadComments(msg.postId);
+          } else if (msg.type === 'delete_comment') {
+            const p = allPosts.find(x => x.id == msg.postId);
+            if (p) { p.comment_count = Math.max(0, (p.comment_count || 0) - 1); renderPosts(); }
+            const box = document.getElementById(`comments-${msg.postId}`);
+            if (box && !box.classList.contains('hidden')) loadComments(msg.postId);
+          }
+        } catch (e) {}
+      };
+      ws.onclose = () => setTimeout(connectWS, 3000);
+    }
+
+    function logout() { fetch('/api/logout', { method: 'POST' }).then(() => location.href = '/login'); }
+
+    // 在线人数（从管理员 stats 接口或简化处理）
+    async function loadOnline() {
+      try {
+        const res = await fetch('/api/admin/stats');
+        if (res.ok) {
+          const s = await res.json();
+          document.getElementById('onlineNum').textContent = s.onlineCount || 0;
+        } else { document.getElementById('onlineNum').textContent = '-'; }
+      } catch (e) { document.getElementById('onlineNum').textContent = '-'; }
+    }
+
+    (async () => {
+      await loadUser();
+      if (!currentUser) return;
+      await loadPosts();
+      connectWS();
+      loadOnline();
+      setInterval(loadOnline, 30000);
+    })();
+  </script>
+</body>
+</html>

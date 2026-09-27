@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小涵下载交流 · 我的</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/icons.js"></script>
+</head>
+<body>
+  <nav class="topbar" id="topbar">
+    <a href="/" class="topbar-brand">
+      <div class="logo-box" data-icon="logo"></div>
+      <b>小涵下载交流</b>
+    </a>
+    <div class="topbar-nav">
+      <a href="/download" class="topbar-link"><span data-icon="download"></span>下载社区</a>
+      <a href="/community" class="topbar-link"><span data-icon="message"></span>用户交流</a>
+      <a href="/shop" class="topbar-link"><span data-icon="coin"></span>金币商城</a>
+      <a href="/me" class="topbar-link active"><span data-icon="user"></span>我的</a>
+      <a href="/admin" class="topbar-link" id="adminLink" style="display:none;"><span data-icon="settings"></span>管理后台</a>
+    </div>
+    <div class="topbar-right">
+      <a href="/shop" class="coin-pill" title="金币商城"><span data-icon="coin"></span><span id="navCoins">0</span></a>
+      <div class="avatar" id="navAvatar">U</div>
+      <button class="btn-logout" onclick="logout()"><span data-icon="logout"></span><span>退出</span></button>
+    </div>
+  </nav>
+
+  <div class="container-narrow page-enter">
+    <!-- 用户信息卡 -->
+    <div class="profile-card mb-6">
+      <div class="avatar avatar-xl" id="profileAvatar">U</div>
+      <div class="profile-name" id="profileName">用户</div>
+      <div class="profile-meta" id="profileMeta">加入于 -</div>
+      <div class="profile-stats">
+        <div class="profile-stat">
+          <div class="num" id="statPosts">0</div>
+          <div class="label">发帖</div>
+        </div>
+        <div class="profile-stat">
+          <div class="num" id="statLikes">0</div>
+          <div class="label">获赞</div>
+        </div>
+        <div class="profile-stat">
+          <div class="num" id="statCoins" style="color:var(--gold);">0</div>
+          <div class="label">金币</div>
+        </div>
+      </div>
+      <div class="flex gap-4 mt-6" style="justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-sm" onclick="showAvatarModal()"><span data-icon="image"></span>更换头像</button>
+        <a href="/shop" class="btn btn-sm btn-gold"><span data-icon="coin"></span>去签到</a>
+        <button class="btn btn-sm btn-ghost" onclick="showFeedbackModal()"><span data-icon="mail"></span>意见反馈</button>
+      </div>
+    </div>
+
+    <!-- 标签页 -->
+    <div class="tabs">
+      <button class="tab active" data-tab="records"><span data-icon="ticket"></span>兑换记录</button>
+      <button class="tab" data-tab="myposts"><span data-icon="message"></span>我的帖子</button>
+      <button class="tab" data-tab="mylikes"><span data-icon="heart"></span>我的点赞</button>
+    </div>
+
+    <!-- 兑换记录 -->
+    <div id="tab-records">
+      <div id="recordsList">
+        <div class="loader-wrap"><div class="loader"></div><div>加载中...</div></div>
+      </div>
+      <div class="empty hidden" id="emptyRecords">
+        <div class="empty-icon" data-icon="ticket"></div>
+        <h3>暂无兑换记录</h3>
+        <p>去金币商城兑换你的第一份好礼</p>
+      </div>
+    </div>
+
+    <!-- 我的帖子 -->
+    <div id="tab-myposts" class="hidden">
+      <div id="mypostsList"></div>
+      <div class="empty hidden" id="emptyMyPosts">
+        <div class="empty-icon" data-icon="message"></div>
+        <h3>还没有发过帖子</h3>
+        <p>去社区分享你的精彩瞬间</p>
+      </div>
+    </div>
+
+    <!-- 我的点赞 -->
+    <div id="tab-mylikes" class="hidden">
+      <div id="mylikesList"></div>
+      <div class="empty hidden" id="emptyMyLikes">
+        <div class="empty-icon" data-icon="heart"></div>
+        <h3>还没有点赞过</h3>
+        <p>为你喜欢的帖子点赞吧</p>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/download" class="bn-item"><span data-icon="download"></span><span>下载</span></a>
+      <a href="/community" class="bn-item"><span data-icon="message"></span><span>社区</span></a>
+      <a href="/shop" class="bn-item"><span data-icon="coin"></span><span>商城</span></a>
+      <a href="/me" class="bn-item active"><span data-icon="user"></span><span>我的</span></a>
+    </div>
+  </nav>
+
+  <!-- 头像上传模态 -->
+  <div class="modal-mask hidden" id="avatarModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>更换头像</h3>
+        <button class="modal-close" onclick="closeAvatarModal()">✕</button>
+      </div>
+      <div style="text-align:center;">
+        <div class="avatar avatar-xl" id="avatarPreview" style="margin:0 auto 16px;">U</div>
+        <label class="upload-btn" style="display:inline-flex;margin-bottom:16px;">
+          <span data-icon="image"></span>选择图片
+          <input type="file" id="avatarFile" accept="image/*" style="display:none" onchange="previewAvatar(event)">
+        </label>
+        <div style="color:var(--text-3);font-size:13px;margin-bottom:16px;">支持 JPG/PNG，建议 256x256，最大 2MB</div>
+        <button class="btn btn-block" id="uploadAvatarBtn" onclick="uploadAvatar()"><span data-icon="save"></span>上传头像</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 反馈模态 -->
+  <div class="modal-mask hidden" id="feedbackModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>意见反馈</h3>
+        <button class="modal-close" onclick="closeFeedbackModal()">✕</button>
+      </div>
+      <div class="form-group">
+        <label>反馈类型</label>
+        <select class="input" id="feedbackType" style="background:rgba(7,6,13,0.5);border:1px solid var(--border);border-radius:12px;">
+          <option value="bug">问题反馈</option>
+          <option value="suggest">功能建议</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>详细描述</label>
+        <textarea class="textarea" id="feedbackContent" placeholder="请描述你遇到的问题或建议..." rows="5" style="background:rgba(7,6,13,0.5);border:1px solid var(--border);border-radius:12px;"></textarea>
+      </div>
+      <button class="btn btn-block" id="submitFeedbackBtn" onclick="submitFeedback()"><span data-icon="send"></span>提交反馈</button>
+    </div>
+  </div>
+
+  <script>
+    renderIcons();
+    let currentUser = null;
+    let avatarPending = null;
+
+    async function loadUser() {
+      try {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+          currentUser = await res.json();
+          const u = currentUser;
+          document.getElementById('navCoins').textContent = u.coins || 0;
+          document.getElementById('statCoins').textContent = u.coins || 0;
+          const navAv = document.getElementById('navAvatar');
+          const profAv = document.getElementById('profileAvatar');
+          if (u.avatar) {
+            navAv.innerHTML = `<img src="${u.avatar}" alt="">`;
+            profAv.innerHTML = `<img src="${u.avatar}" alt="">`;
+            document.getElementById('avatarPreview').innerHTML = `<img src="${u.avatar}" alt="">`;
+          } else {
+            const ini = (u.display_name || u.username || 'U').charAt(0).toUpperCase();
+            navAv.textContent = ini; profAv.textContent = ini;
+            document.getElementById('avatarPreview').textContent = ini;
+          }
+          if (u.is_vip) {
+            profAv.classList.add('avatar-vip');
+            const nm = document.getElementById('profileName');
+            nm.classList.add('vip-name');
+            nm.innerHTML = escapeHtml(u.display_name || u.username) + '<span class="vip-badge"><span class="icon icon-sm" style="fill:currentColor;stroke:none;width:10px;height:10px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></span>VIP</span>';
+          } else {
+            document.getElementById('profileName').textContent = u.display_name || u.username || '用户';
+          }
+          document.getElementById('profileMeta').textContent = '加入于 ' + (u.created_at ? u.created_at.slice(0, 10) : '-');
+          document.getElementById('statPosts').textContent = u.post_count || 0;
+          document.getElementById('statLikes').textContent = u.like_received || 0;
+          if (u.isAdmin) document.getElementById('adminLink').style.display = '';
+        } else { location.href = '/login'; return; }
+      } catch (e) {}
+    }
+
+    function escapeHtml(s) {
+      return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    async function loadRecords() {
+      try {
+        const res = await fetch('/api/my/exchanges');
+        const records = await res.json();
+        const list = document.getElementById('recordsList');
+        const empty = document.getElementById('emptyRecords');
+        if (!records || records.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        list.innerHTML = records.map(r => {
+          const icon = 'gift';
+          return `<div class="record">
+            <div class="icon-box"><span data-icon="${icon}"></span></div>
+            <div class="body">
+              <div class="title">${escapeHtml(r.item_title || '兑换商品')}</div>
+              <div class="meta">${escapeHtml(r.created_at || '')} · 花费 ${r.cost || 0} 金币</div>
+              ${r.keys ? `<div class="keys">${escapeHtml(r.keys)}</div>` : ''}
+            </div>
+            ${r.keys ? `<button class="icon-btn" onclick="copyText('${escapeHtml(r.keys)}')"><span data-icon="copy"></span></button>` : ''}
+          </div>`;
+        }).join('');
+        renderIcons();
+      } catch (e) { document.getElementById('recordsList').innerHTML = '<div class="empty"><p>加载失败</p></div>'; }
+    }
+
+    async function loadMyPosts() {
+      try {
+        const res = await fetch('/api/posts');
+        const allPosts = await res.json();
+        const posts = (allPosts || []).filter(p => p.user_id === currentUser.id);
+        const list = document.getElementById('mypostsList');
+        const empty = document.getElementById('emptyMyPosts');
+        if (!posts || posts.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        list.innerHTML = posts.map(p => `
+          <div class="post">
+            <div class="post-head">
+              <div class="meta">
+                <div style="font-size:12px;color:var(--text-4);">${p.created_at ? p.created_at.slice(0, 16).replace('T', ' ') : ''}</div>
+              </div>
+              <button class="icon-btn" onclick="deletePost(${p.id})"><span data-icon="trash"></span></button>
+            </div>
+            <div class="post-content">${escapeHtml(p.content)}</div>
+            <div class="post-actions">
+              <span class="post-action"><span data-icon="heart"></span><span>${p.like_count || 0}</span></span>
+              <span class="post-action"><span data-icon="message"></span><span>${p.comment_count || 0}</span></span>
+            </div>
+          </div>
+        `).join('');
+        renderIcons();
+      } catch (e) {}
+    }
+
+    async function loadMyLikes() {
+      try {
+        const res = await fetch('/api/posts');
+        const allPosts = await res.json();
+        const posts = (allPosts || []).filter(p => p.liked === true);
+        const list = document.getElementById('mylikesList');
+        const empty = document.getElementById('emptyMyLikes');
+        if (!posts || posts.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        list.innerHTML = posts.map(p => `
+          <div class="post">
+            <div class="post-head">
+              <div class="avatar avatar-sm">${(p.display_name || p.username || 'U').charAt(0).toUpperCase()}</div>
+              <div class="meta">
+                <div style="font-weight:600;font-size:14px;">${escapeHtml(p.display_name || p.username)}</div>
+                <div style="font-size:12px;color:var(--text-4);">${p.created_at ? p.created_at.slice(0, 16).replace('T', ' ') : ''}</div>
+              </div>
+            </div>
+            <div class="post-content">${escapeHtml(p.content)}</div>
+            <div class="post-actions">
+              <span class="post-action liked"><span data-icon="heart"></span><span>${p.like_count || 0}</span></span>
+            </div>
+          </div>
+        `).join('');
+        renderIcons();
+      } catch (e) {}
+    }
+
+    async function deletePost(id) {
+      if (!confirm('确定删除这条帖子吗？')) return;
+      try {
+        const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) { loadMyPosts(); toast('已删除', 'success'); }
+        else { toast(data.error || '删除失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 标签页切换
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        ['records', 'myposts', 'mylikes'].forEach(name => {
+          document.getElementById(`tab-${name}`).classList.add('hidden');
+        });
+        document.getElementById(`tab-${tab.dataset.tab}`).classList.remove('hidden');
+      });
+    });
+
+    // 头像上传
+    function showAvatarModal() { document.getElementById('avatarModal').classList.remove('hidden'); }
+    function closeAvatarModal() { document.getElementById('avatarModal').classList.add('hidden'); avatarPending = null; }
+    document.getElementById('avatarModal').addEventListener('click', (e) => { if (e.target.id === 'avatarModal') closeAvatarModal(); });
+
+    function previewAvatar(e) {
+      const f = e.target.files[0];
+      if (!f) return;
+      if (f.size > 2 * 1024 * 1024) { toast('图片不能超过 2MB', 'error'); return; }
+      avatarPending = f;
+      const reader = new FileReader();
+      reader.onload = (ev) => { document.getElementById('avatarPreview').innerHTML = `<img src="${ev.target.result}" alt="">`; };
+      reader.readAsDataURL(f);
+    }
+
+    async function uploadAvatar() {
+      if (!avatarPending) { toast('请先选择图片', 'error'); return; }
+      const btn = document.getElementById('uploadAvatarBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="loader"></span> 上传中';
+      const fd = new FormData();
+      fd.append('avatar', avatarPending);
+      try {
+        const res = await fetch('/api/profile/avatar', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+          await fetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatar: data.avatar })
+          });
+          closeAvatarModal();
+          await loadUser();
+          toast('头像更新成功', 'success');
+        } else { toast(data.error || '上传失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+      btn.disabled = false; btn.innerHTML = '<span data-icon="save"></span> 上传头像'; renderIcons();
+    }
+
+    // 反馈
+    function showFeedbackModal() { document.getElementById('feedbackModal').classList.remove('hidden'); }
+    function closeFeedbackModal() { document.getElementById('feedbackModal').classList.add('hidden'); }
+    document.getElementById('feedbackModal').addEventListener('click', (e) => { if (e.target.id === 'feedbackModal') closeFeedbackModal(); });
+
+    async function submitFeedback() {
+      const type = document.getElementById('feedbackType').value;
+      const content = document.getElementById('feedbackContent').value.trim();
+      if (!content) { toast('请填写反馈内容', 'error'); return; }
+      const btn = document.getElementById('submitFeedbackBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="loader"></span> 提交中';
+      try {
+        const res = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeFeedbackModal();
+          document.getElementById('feedbackContent').value = '';
+          toast('反馈已提交，感谢您的支持', 'success');
+        } else { toast(data.error || '提交失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+      btn.disabled = false; btn.innerHTML = '<span data-icon="send"></span> 提交反馈'; renderIcons();
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => toast('已复制', 'success'));
+    }
+
+    function logout() { fetch('/api/logout', { method: 'POST' }).then(() => location.href = '/login'); }
+
+    (async () => {
+      await loadUser();
+      if (!currentUser) return;
+      loadRecords();
+      loadMyPosts();
+      loadMyLikes();
+    })();
+  </script>
+</body>
+</html>

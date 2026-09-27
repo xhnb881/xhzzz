@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小涵下载交流 · 下载社区</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/icons.js"></script>
+</head>
+<body>
+  <nav class="topbar" id="topbar">
+    <a href="/" class="topbar-brand">
+      <div class="logo-box" data-icon="logo"></div>
+      <b>小涵下载交流</b>
+    </a>
+    <div class="topbar-nav">
+      <a href="/download" class="topbar-link active"><span data-icon="download"></span>下载社区</a>
+      <a href="/community" class="topbar-link"><span data-icon="message"></span>用户交流</a>
+      <a href="/shop" class="topbar-link"><span data-icon="coin"></span>金币商城</a>
+      <a href="/me" class="topbar-link"><span data-icon="user"></span>我的</a>
+      <a href="/admin" class="topbar-link" id="adminLink" style="display:none;"><span data-icon="settings"></span>管理后台</a>
+    </div>
+    <div class="topbar-right">
+      <a href="/shop" class="coin-pill" title="金币商城"><span data-icon="coin"></span><span id="navCoins">0</span></a>
+      <div class="avatar" id="navAvatar">U</div>
+      <button class="btn-logout" onclick="logout()"><span data-icon="logout"></span><span>退出</span></button>
+    </div>
+  </nav>
+
+  <div class="container page-enter">
+    <div class="page-head">
+      <h2><span data-icon="download"></span>下载社区</h2>
+      <div class="actions">
+        <span class="pill pill-mute"><span data-icon="file"></span><span id="totalRes">0</span> 个资源</span>
+      </div>
+    </div>
+
+    <!-- 工具栏：搜索 + 排序 -->
+    <div class="toolbar">
+      <div class="search-bar">
+        <span data-icon="search"></span>
+        <input type="text" id="searchInput" placeholder="搜索资源标题或描述..." autocomplete="off">
+        <button class="clear-btn" id="clearSearch" style="display:none;">✕</button>
+      </div>
+      <div class="sort-bar">
+        <button class="sort-btn active" data-sort="newest"><span data-icon="list"></span>最新</button>
+        <button class="sort-btn" data-sort="hot"><span data-icon="fire"></span>最热</button>
+        <button class="sort-btn" data-sort="likes"><span data-icon="heart"></span>点赞</button>
+      </div>
+    </div>
+
+    <!-- 资源网格 -->
+    <div class="grid grid-auto" id="dlGrid">
+      <div class="loader-wrap"><div class="loader"></div><div>加载中...</div></div>
+    </div>
+
+    <div class="empty hidden" id="emptyState">
+      <div class="empty-icon" data-icon="download"></div>
+      <h3>暂无资源</h3>
+      <p>还没有任何下载资源，请稍后再来</p>
+    </div>
+  </div>
+
+  <!-- 底部移动导航 -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/download" class="bn-item active"><span data-icon="download"></span><span>下载</span></a>
+      <a href="/community" class="bn-item"><span data-icon="message"></span><span>社区</span></a>
+      <a href="/shop" class="bn-item"><span data-icon="coin"></span><span>商城</span></a>
+      <a href="/me" class="bn-item"><span data-icon="user"></span><span>我的</span></a>
+    </div>
+  </nav>
+
+  <!-- 资源详情模态框 -->
+  <div class="modal-mask hidden" id="detailModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="detailTitle">资源详情</h3>
+        <button class="modal-close" onclick="closeDetail()">✕</button>
+      </div>
+      <div id="detailBody"></div>
+    </div>
+  </div>
+
+  <script>
+    renderIcons();
+    let allDownloads = [];
+    let currentSort = 'newest';
+    let currentSearch = '';
+
+    // 加载用户信息
+    async function loadUser() {
+      try {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+          const u = await res.json();
+          document.getElementById('navCoins').textContent = u.coins || 0;
+          const av = document.getElementById('navAvatar');
+          if (u.avatar) av.innerHTML = `<img src="${u.avatar}" alt="">`;
+          else av.textContent = (u.display_name || u.username || 'U').charAt(0).toUpperCase();
+          if (u.isAdmin) document.getElementById('adminLink').style.display = '';
+        } else { location.href = '/login'; return; }
+      } catch (e) {}
+    }
+
+    // 加载资源
+    async function loadDownloads() {
+      try {
+        const res = await fetch('/api/downloads');
+        allDownloads = await res.json();
+        renderDownloads();
+      } catch (e) {
+        document.getElementById('dlGrid').innerHTML = '<div class="empty"><p>加载失败，请刷新重试</p></div>';
+      }
+    }
+
+    function renderDownloads() {
+      const grid = document.getElementById('dlGrid');
+      const empty = document.getElementById('emptyState');
+      document.getElementById('totalRes').textContent = allDownloads.length;
+
+      let list = [...allDownloads];
+      // 搜索过滤
+      if (currentSearch) {
+        const q = currentSearch.toLowerCase();
+        list = list.filter(d => (d.title || '').toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q));
+      }
+      // 排序
+      if (currentSort === 'newest') list.sort((a, b) => b.id - a.id);
+      else if (currentSort === 'hot') list.sort((a, b) => (b.downloads_count || 0) - (a.downloads_count || 0));
+      else if (currentSort === 'likes') list.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+
+      if (list.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      grid.innerHTML = list.map(d => `
+        <div class="dl-card" onclick="showDetail(${d.id})">
+          <div class="dl-thumb">
+            ${d.image ? `<img src="${d.image}" alt="">` : `<span data-icon="download"></span>`}
+            ${d.version ? `<span class="ver">v${d.version}</span>` : ''}
+          </div>
+          <div class="dl-body">
+            <h3>${escapeHtml(d.title)}</h3>
+            <p class="dl-desc">${escapeHtml(d.description || '暂无描述')}</p>
+            <div class="dl-foot">
+              <div class="dl-stats">
+                <span class="dl-stat"><span data-icon="download"></span>${d.downloads_count || 0}</span>
+                <span class="dl-stat"><span data-icon="heart"></span>${d.likes || 0}</span>
+              </div>
+              <div class="dl-actions">
+                <button class="icon-btn ${d.liked ? 'liked' : ''}" onclick="event.stopPropagation(); toggleLike(${d.id})" title="点赞">
+                  <span data-icon="heart"></span>
+                </button>
+              </div>
+            </div>
+            <button class="dl-dl-btn" onclick="event.stopPropagation(); startDownload(${d.id}, '${encodeURIComponent(d.download_url || '#')}')"><span data-icon="download"></span>立即下载</button>
+          </div>
+        </div>
+      `).join('');
+      renderIcons();
+    }
+
+    function escapeHtml(s) {
+      return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // 点赞
+    async function toggleLike(id) {
+      try {
+        const res = await fetch(`/api/downloads/${id}/like`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          const d = allDownloads.find(x => x.id === id);
+          if (d) {
+            d.liked = data.liked;
+            d.likes = (d.likes || 0) + (data.liked ? 1 : -1);
+            renderDownloads();
+            toast(data.liked ? '已点赞' : '已取消', data.liked ? 'success' : 'info');
+          }
+        } else { toast(data.error || '操作失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 详情
+    function showDetail(id) {
+      const d = allDownloads.find(x => x.id === id);
+      if (!d) return;
+      document.getElementById('detailTitle').textContent = d.title;
+      document.getElementById('detailBody').innerHTML = `
+        ${d.image ? `<img src="${d.image}" style="width:100%;border-radius:12px;margin-bottom:16px;max-height:280px;object-fit:cover;">` : ''}
+        ${d.version ? `<div class="mb-4"><span class="pill pill-accent"><span data-icon="tag"></span>版本 v${d.version}</span></div>` : ''}
+        <p style="color:var(--text-2);line-height:1.7;margin-bottom:20px;white-space:pre-wrap;">${escapeHtml(d.description || '暂无描述')}</p>
+        <div class="flex gap-4 mb-6" style="color:var(--text-3);font-size:13px;">
+          <span class="inline-flex items-center gap-2"><span data-icon="download"></span>${d.downloads_count || 0} 次下载</span>
+          <span class="inline-flex items-center gap-2"><span data-icon="heart"></span>${d.likes || 0} 点赞</span>
+        </div>
+        <button class="btn btn-block btn-lg" onclick="startDownload(${d.id}, '${encodeURIComponent(d.download_url || '#')}')"><span data-icon="download"></span>立即下载</button>
+      `;
+      document.getElementById('detailModal').classList.remove('hidden');
+      renderIcons();
+    }
+    function closeDetail() { document.getElementById('detailModal').classList.add('hidden'); }
+    document.getElementById('detailModal').addEventListener('click', (e) => { if (e.target.id === 'detailModal') closeDetail(); });
+
+    async function startDownload(id, urlEnc) {
+      const url = decodeURIComponent(urlEnc);
+      try {
+        await fetch(`/api/downloads/${id}/count`, { method: 'POST' });
+        const d = allDownloads.find(x => x.id === id);
+        if (d) d.downloads_count = (d.downloads_count || 0) + 1;
+        renderDownloads();
+      } catch (e) {}
+      if (url && url !== '#') window.open(url, '_blank');
+      else toast('暂无下载链接', 'info');
+      closeDetail();
+    }
+
+    // 搜索
+    const searchInput = document.getElementById('searchInput');
+    const clearBtn = document.getElementById('clearSearch');
+    searchInput.addEventListener('input', () => {
+      currentSearch = searchInput.value.trim();
+      clearBtn.style.display = currentSearch ? 'block' : 'none';
+      renderDownloads();
+    });
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = ''; currentSearch = ''; clearBtn.style.display = 'none'; renderDownloads();
+    });
+
+    // 排序
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSort = btn.dataset.sort;
+        renderDownloads();
+      });
+    });
+
+    function logout() { fetch('/api/logout', { method: 'POST' }).then(() => location.href = '/login'); }
+
+    loadUser();
+    loadDownloads();
+  </script>
+</body>
+</html>

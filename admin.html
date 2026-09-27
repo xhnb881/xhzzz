@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小涵下载交流 · 管理后台</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/icons.js"></script>
+</head>
+<body>
+  <nav class="topbar" id="topbar">
+    <a href="/" class="topbar-brand">
+      <div class="logo-box" data-icon="logo"></div>
+      <b>小涵下载交流</b>
+    </a>
+    <div class="topbar-nav">
+      <a href="/download" class="topbar-link"><span data-icon="download"></span>下载社区</a>
+      <a href="/community" class="topbar-link"><span data-icon="message"></span>用户交流</a>
+      <a href="/shop" class="topbar-link"><span data-icon="coin"></span>金币商城</a>
+      <a href="/me" class="topbar-link"><span data-icon="user"></span>我的</a>
+      <a href="/admin" class="topbar-link active"><span data-icon="settings"></span>管理后台</a>
+    </div>
+    <div class="topbar-right">
+      <a href="/shop" class="coin-pill" title="金币商城"><span data-icon="coin"></span><span id="navCoins">0</span></a>
+      <div class="avatar" id="navAvatar">U</div>
+      <button class="btn-logout" onclick="logout()"><span data-icon="logout"></span><span>退出</span></button>
+    </div>
+  </nav>
+
+  <div class="container-wide page-enter">
+    <div class="page-head">
+      <h2><span data-icon="settings"></span>管理后台</h2>
+      <div class="actions">
+        <span class="online-pill"><span class="dot"></span><span id="onlineNum">-</span> 在线</span>
+        <a href="/community" class="admin-front-btn"><span data-icon="external"></span>返回前台</a>
+      </div>
+    </div>
+
+    <!-- 仪表盘统计 -->
+    <div class="grid grid-4 mb-6" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-icon"><span data-icon="users"></span></div>
+        <div class="stat-label">总用户数</div>
+        <div class="stat-value" id="statUsers">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:var(--accent-soft);color:var(--accent-light);"><span data-icon="message"></span></div>
+        <div class="stat-label">总帖子数</div>
+        <div class="stat-value" id="statPosts">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:var(--success-soft);color:var(--success);"><span data-icon="download"></span></div>
+        <div class="stat-label">总下载量</div>
+        <div class="stat-value" id="statDownloads">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:var(--gold-soft);color:var(--gold);"><span data-icon="coin"></span></div>
+        <div class="stat-label">金币流通量</div>
+        <div class="stat-value" id="statCoins">0</div>
+      </div>
+    </div>
+
+    <!-- 标签页 -->
+    <div class="tabs">
+      <button class="tab active" data-tab="users"><span data-icon="users"></span>用户管理</button>
+      <button class="tab" data-tab="downloads"><span data-icon="download"></span>下载资源</button>
+      <button class="tab" data-tab="shop"><span data-icon="bag"></span>商城商品</button>
+      <button class="tab" data-tab="vip"><span data-icon="crown"></span>VIP管理</button>
+      <button class="tab" data-tab="feedback"><span data-icon="mail"></span>反馈处理</button>
+      <button class="tab" data-tab="notice"><span data-icon="bell"></span>公告设置</button>
+    </div>
+
+    <!-- 用户管理 -->
+    <div id="tab-users">
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>用户名</th><th>金币</th><th>VIP</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
+            <tbody id="usersBody">
+              <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-3);">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 下载资源 -->
+    <div id="tab-downloads" class="hidden">
+      <div class="card">
+        <div class="flex justify-between items-center mb-4">
+          <h3 style="font-size:16px;">资源列表</h3>
+          <button class="btn btn-sm" onclick="showDownloadModal()"><span data-icon="plus"></span>新增资源</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>标题</th><th>版本</th><th>下载量</th><th>点赞</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="downloadsBody">
+              <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-3);">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 商城商品 -->
+    <div id="tab-shop" class="hidden">
+      <div class="card">
+        <div class="flex justify-between items-center mb-4">
+          <h3 style="font-size:16px;">商品列表</h3>
+          <button class="btn btn-sm" onclick="showItemModal()"><span data-icon="plus"></span>新增商品</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>名称</th><th>价格</th><th>库存</th><th>类型</th><th>操作</th></tr></thead>
+            <tbody id="shopBody">
+              <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-3);">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIP 管理 -->
+    <div id="tab-vip" class="hidden">
+      <div class="card">
+        <div class="flex justify-between items-center mb-4">
+          <h3 style="font-size:16px;">兑换码列表</h3>
+          <button class="btn btn-sm" onclick="generateVipCodes()"><span data-icon="plus"></span>生成兑换码</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>兑换码</th><th>天数</th><th>状态</th><th>使用者</th><th>使用时间</th><th>操作</th></tr></thead>
+            <tbody id="vipBody">
+              <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-3);">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 反馈处理 -->
+    <div id="tab-feedback" class="hidden">
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:16px;">用户反馈</h3>
+        <div id="feedbackList" style="display:flex;flex-direction:column;gap:12px;">
+          <div class="loader-wrap"><div class="loader"></div><div>加载中...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 公告设置 -->
+    <div id="tab-notice" class="hidden">
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:16px;">全局公告设置</h3>
+        <div class="form-group">
+          <label>公告内容</label>
+          <textarea class="textarea" id="noticeContent" placeholder="设置公告内容，留空则关闭公告" rows="3" style="background:rgba(7,6,13,0.5);border:1px solid var(--border);border-radius:12px;"></textarea>
+        </div>
+        <button class="btn" onclick="saveNotice()"><span data-icon="save"></span>保存公告</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 资源编辑模态 -->
+  <div class="modal-mask hidden" id="downloadModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="downloadModalTitle">新增资源</h3>
+        <button class="modal-close" onclick="closeDownloadModal()">✕</button>
+      </div>
+      <input type="hidden" id="dlId">
+      <div class="form-group"><label>标题</label><div class="input-wrap"><input class="input" id="dlTitle" placeholder="资源名称"></div></div>
+      <div class="form-group"><label>版本</label><div class="input-wrap"><input class="input" id="dlVersion" placeholder="如 1.0.0"></div></div>
+      <div class="form-group"><label>描述</label><textarea class="textarea" id="dlDesc" placeholder="资源描述" rows="3"></textarea></div>
+      <div class="form-group"><label>下载链接</label><div class="input-wrap"><span data-icon="link"></span><input class="input" id="dlUrl" placeholder="下载 URL"></div></div>
+      <div class="form-group"><label>图片链接</label><div class="input-wrap"><span data-icon="image"></span><input class="input" id="dlImage" placeholder="缩略图 URL"></div></div>
+      <button class="btn btn-block" onclick="saveDownload()"><span data-icon="save"></span>保存</button>
+    </div>
+  </div>
+
+  <!-- 商品编辑模态 -->
+  <div class="modal-mask hidden" id="itemModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="itemModalTitle">新增商品</h3>
+        <button class="modal-close" onclick="closeItemModal()">✕</button>
+      </div>
+      <input type="hidden" id="itemId">
+      <div class="form-group"><label>名称</label><div class="input-wrap"><input class="input" id="itemName" placeholder="商品名称"></div></div>
+      <div class="form-group"><label>描述</label><textarea class="textarea" id="itemDesc" placeholder="商品描述" rows="2"></textarea></div>
+      <div class="form-group"><label>价格（金币）</label><div class="input-wrap"><span data-icon="coin"></span><input class="input" type="number" id="itemCost" placeholder="如 100"></div></div>
+      <div class="form-group"><label>库存（留空为不限量）</label><div class="input-wrap"><input class="input" type="number" id="itemStock" placeholder="库存数量"></div></div>
+      <div class="form-group"><label>类型</label>
+        <select class="input" id="itemType" style="background:rgba(7,6,13,0.5);border:1px solid var(--border);border-radius:12px;">
+          <option value="normal">普通商品</option>
+          <option value="vip">VIP开通</option>
+        </select>
+      </div>
+      <div class="form-group"><label>卡密（每行一个，可选）</label><textarea class="textarea" id="itemKeys" placeholder="如有卡密，每行一个" rows="3"></textarea></div>
+      <button class="btn btn-block" onclick="saveItem()"><span data-icon="save"></span>保存</button>
+    </div>
+  </div>
+
+  <script>
+    renderIcons();
+    let currentUser = null;
+
+    async function loadUser() {
+      try {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+          currentUser = await res.json();
+          if (!currentUser.isAdmin) { location.href = '/community'; return; }
+          document.getElementById('navCoins').textContent = currentUser.coins || 0;
+          const av = document.getElementById('navAvatar');
+          if (currentUser.avatar) av.innerHTML = `<img src="${currentUser.avatar}" alt="">`;
+          else av.textContent = (currentUser.display_name || currentUser.username || 'U').charAt(0).toUpperCase();
+        } else { location.href = '/login'; return; }
+      } catch (e) {}
+    }
+
+    function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    // 仪表盘
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/admin/stats');
+        if (res.ok) {
+          const s = await res.json();
+          document.getElementById('statUsers').textContent = s.userCount || 0;
+          document.getElementById('statPosts').textContent = s.postCount || 0;
+          document.getElementById('statDownloads').textContent = s.downloadCount || 0;
+          document.getElementById('statCoins').textContent = s.coinTotal || 0;
+          document.getElementById('onlineNum').textContent = s.onlineCount || 0;
+        }
+      } catch (e) {}
+    }
+
+    // 用户
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/admin/users');
+        const users = await res.json();
+        const body = document.getElementById('usersBody');
+        if (!users.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-3);">暂无用户</td></tr>'; return; }
+        body.innerHTML = users.map(u => `
+          <tr>
+            <td>${u.id}</td>
+            <td>${escapeHtml(u.username)}${u.is_vip ? ' <span class="vip-badge" style="font-size:9px;">VIP</span>' : ''}</td>
+            <td style="color:var(--gold);">${u.coins || 0}</td>
+            <td>${u.is_vip ? '<span class="pill pill-gold" style="font-size:11px;">已开通</span>' : '<span class="pill pill-mute" style="font-size:11px;">未开通</span>'}</td>
+            <td>${u.is_banned ? '<span class="pill pill-danger" style="font-size:11px;">封禁</span>' : '<span class="pill pill-success" style="font-size:11px;">正常</span>'}</td>
+            <td style="font-size:12px;">${u.created_at ? u.created_at.slice(0, 10) : '-'}</td>
+            <td>
+              <button class="icon-btn" onclick="adjustCoins(${u.id})" title="调整金币"><span data-icon="coin"></span></button>
+              ${u.is_banned
+                ? `<button class="icon-btn" onclick="toggleBan(${u.id}, false)" title="解封"><span data-icon="unlock"></span></button>`
+                : `<button class="icon-btn" onclick="toggleBan(${u.id}, true)" title="封禁"><span data-icon="ban"></span></button>`}
+            </td>
+          </tr>`).join('');
+        renderIcons();
+      } catch (e) {}
+    }
+
+    async function adjustCoins(id) {
+      const amt = prompt('输入要增加的金币数（负数表示扣除）：');
+      if (amt === null) return;
+      const n = parseInt(amt);
+      if (isNaN(n)) { toast('请输入数字', 'error'); return; }
+      try {
+        const res = await fetch(`/api/admin/users/${id}/coins`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: n }) });
+        const data = await res.json();
+        if (data.success) { loadUsers(); loadStats(); toast('金币调整成功', 'success'); }
+        else { toast(data.error || '操作失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    async function toggleBan(id, ban) {
+      if (!confirm(ban ? '确定封禁该用户？' : '确定解封该用户？')) return;
+      try {
+        const res = await fetch(`/api/admin/users/${id}/ban`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ban }) });
+        const data = await res.json();
+        if (data.success) { loadUsers(); toast(ban ? '已封禁' : '已解封', 'success'); }
+        else { toast(data.error || '操作失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 下载资源
+    async function loadDownloads() {
+      try {
+        const res = await fetch('/api/downloads');
+        const list = await res.json();
+        const body = document.getElementById('downloadsBody');
+        if (!list.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-3);">暂无资源</td></tr>'; return; }
+        body.innerHTML = list.map(d => `
+          <tr>
+            <td>${d.id}</td>
+            <td>${escapeHtml(d.title)}</td>
+            <td style="font-size:12px;">${d.version ? 'v' + escapeHtml(d.version) : '-'}</td>
+            <td>${d.downloads_count || 0}</td>
+            <td>${d.likes || 0}</td>
+            <td><span class="pill pill-success" style="font-size:11px;">上架</span></td>
+            <td>
+              <button class="icon-btn" onclick="editDownload(${d.id})" title="编辑"><span data-icon="edit"></span></button>
+              <button class="icon-btn" onclick="deleteDownload(${d.id})" title="删除"><span data-icon="trash"></span></button>
+            </td>
+          </tr>`).join('');
+        renderIcons();
+      } catch (e) {}
+    }
+
+    function showDownloadModal() {
+      document.getElementById('downloadModalTitle').textContent = '新增资源';
+      ['dlId', 'dlTitle', 'dlVersion', 'dlDesc', 'dlUrl', 'dlImage'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('downloadModal').classList.remove('hidden');
+    }
+    function closeDownloadModal() { document.getElementById('downloadModal').classList.add('hidden'); }
+    document.getElementById('downloadModal').addEventListener('click', (e) => { if (e.target.id === 'downloadModal') closeDownloadModal(); });
+
+    async function editDownload(id) {
+      try {
+        const res = await fetch('/api/downloads');
+        const list = await res.json();
+        const d = list.find(x => x.id === id);
+        if (!d) return;
+        document.getElementById('downloadModalTitle').textContent = '编辑资源';
+        document.getElementById('dlId').value = d.id;
+        document.getElementById('dlTitle').value = d.title || '';
+        document.getElementById('dlVersion').value = d.version || '';
+        document.getElementById('dlDesc').value = d.description || '';
+        document.getElementById('dlUrl').value = d.download_url || '';
+        document.getElementById('dlImage').value = d.image || '';
+        document.getElementById('downloadModal').classList.remove('hidden');
+      } catch (e) {}
+    }
+
+    async function saveDownload() {
+      const id = document.getElementById('dlId').value;
+      const data = {
+        title: document.getElementById('dlTitle').value.trim(),
+        version: document.getElementById('dlVersion').value.trim(),
+        description: document.getElementById('dlDesc').value.trim(),
+        download_url: document.getElementById('dlUrl').value.trim(),
+        image: document.getElementById('dlImage').value.trim()
+      };
+      if (!data.title) { toast('请填写标题', 'error'); return; }
+      try {
+        const url = id ? `/api/admin/downloads/${id}` : '/api/admin/downloads';
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        const r = await res.json();
+        if (r.success) { closeDownloadModal(); loadDownloads(); loadStats(); toast('保存成功', 'success'); }
+        else { toast(r.error || '保存失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    async function deleteDownload(id) {
+      if (!confirm('确定删除该资源？')) return;
+      try {
+        const res = await fetch(`/api/admin/downloads/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) { loadDownloads(); loadStats(); toast('已删除', 'success'); }
+        else { toast(data.error || '删除失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 商城
+    async function loadShop() {
+      try {
+        const res = await fetch('/api/admin/shop');
+        const list = await res.json();
+        const body = document.getElementById('shopBody');
+        if (!list.length) { body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-3);">暂无商品</td></tr>'; return; }
+        body.innerHTML = list.map(i => `
+          <tr>
+            <td>${i.id}</td>
+            <td>${escapeHtml(i.title)}</td>
+            <td style="color:var(--gold);">${i.cost}</td>
+            <td>${i.stock !== null && i.stock !== undefined ? i.stock : '不限'}</td>
+            <td>${i.icon_type === 'vip' ? '<span class="pill pill-gold" style="font-size:11px;">VIP</span>' : '<span class="pill pill-mute" style="font-size:11px;">普通</span>'}</td>
+            <td>
+              <button class="icon-btn" onclick="editItem(${i.id})" title="编辑"><span data-icon="edit"></span></button>
+              <button class="icon-btn" onclick="deleteItem(${i.id})" title="删除"><span data-icon="trash"></span></button>
+            </td>
+          </tr>`).join('');
+        renderIcons();
+      } catch (e) {}
+    }
+
+    function showItemModal() {
+      document.getElementById('itemModalTitle').textContent = '新增商品';
+      ['itemId', 'itemName', 'itemDesc', 'itemCost', 'itemStock', 'itemKeys'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('itemType').value = 'normal';
+      document.getElementById('itemModal').classList.remove('hidden');
+    }
+    function closeItemModal() { document.getElementById('itemModal').classList.remove('hidden'); document.getElementById('itemModal').classList.add('hidden'); }
+    document.getElementById('itemModal').addEventListener('click', (e) => { if (e.target.id === 'itemModal') closeItemModal(); });
+
+    async function editItem(id) {
+      try {
+        const res = await fetch('/api/admin/shop');
+        const list = await res.json();
+        const i = list.find(x => x.id === id);
+        if (!i) return;
+        document.getElementById('itemModalTitle').textContent = '编辑商品';
+        document.getElementById('itemId').value = i.id;
+        document.getElementById('itemName').value = i.title || '';
+        document.getElementById('itemDesc').value = i.description || '';
+        document.getElementById('itemCost').value = i.cost || '';
+        document.getElementById('itemStock').value = (i.stock !== null && i.stock !== undefined) ? i.stock : '';
+        document.getElementById('itemType').value = i.icon_type || 'normal';
+        document.getElementById('itemKeys').value = '';
+        document.getElementById('itemModal').classList.remove('hidden');
+      } catch (e) {}
+    }
+
+    async function saveItem() {
+      const id = document.getElementById('itemId').value;
+      const data = {
+        title: document.getElementById('itemName').value.trim(),
+        description: document.getElementById('itemDesc').value.trim(),
+        icon_type: document.getElementById('itemType').value,
+        cost: parseInt(document.getElementById('itemCost').value) || 0,
+        keys: document.getElementById('itemKeys').value.trim()
+      };
+      if (!data.title) { toast('请填写名称', 'error'); return; }
+      try {
+        const url = id ? `/api/admin/shop/${id}` : '/api/admin/shop';
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        const r = await res.json();
+        if (r.success) { closeItemModal(); loadShop(); toast('保存成功', 'success'); }
+        else { toast(r.error || '保存失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    async function deleteItem(id) {
+      if (!confirm('确定删除该商品？')) return;
+      try {
+        const res = await fetch(`/api/admin/shop/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) { loadShop(); toast('已删除', 'success'); }
+        else { toast(data.error || '删除失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // VIP
+    async function loadVip() {
+      try {
+        const res = await fetch('/api/admin/vip/codes');
+        const list = await res.json();
+        const body = document.getElementById('vipBody');
+        if (!list.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-3);">暂无兑换码</td></tr>'; return; }
+        body.innerHTML = list.map(v => `
+          <tr>
+            <td>${v.id}</td>
+            <td style="font-family:monospace;">${escapeHtml(v.code)}</td>
+            <td>${v.days}</td>
+            <td>${v.used ? '<span class="pill pill-mute" style="font-size:11px;">已使用</span>' : '<span class="pill pill-success" style="font-size:11px;">未使用</span>'}</td>
+            <td>${v.used_by ? escapeHtml(String(v.used_by)) : '-'}</td>
+            <td style="font-size:12px;">${v.used_at ? v.used_at.slice(0, 16).replace('T', ' ') : '-'}</td>
+            <td><button class="icon-btn" onclick="deleteVipCode(${v.id})" title="删除"><span data-icon="trash"></span></button></td>
+          </tr>`).join('');
+        renderIcons();
+      } catch (e) {}
+    }
+
+    async function generateVipCodes() {
+      const input = prompt('请输入"天数,数量"，例如 30,5');
+      if (input === null) return;
+      const parts = input.split(',').map(s => s.trim());
+      if (parts.length !== 2) { toast('格式错误，请按"天数,数量"输入', 'error'); return; }
+      const days = parseInt(parts[0]);
+      const count = parseInt(parts[1]);
+      if (isNaN(days) || isNaN(count) || days <= 0 || count <= 0) { toast('请输入有效的天数和数量', 'error'); return; }
+      try {
+        const res = await fetch('/api/admin/vip/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ days, count }) });
+        const data = await res.json();
+        if (data.success) {
+          const codes = (data.codes || []).map(c => c.code).join('\n');
+          alert('生成成功，共 ' + (data.codes || []).length + ' 个兑换码：\n\n' + codes);
+          loadVip();
+          toast('生成成功', 'success');
+        } else {
+          toast(data.error || '生成失败', 'error');
+        }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    async function deleteVipCode(id) {
+      if (!confirm('确定删除该兑换码？')) return;
+      try {
+        const res = await fetch(`/api/admin/vip/codes/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) { loadVip(); toast('已删除', 'success'); }
+        else { toast(data.error || '删除失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 反馈
+    async function loadFeedback() {
+      try {
+        const res = await fetch('/api/admin/feedback');
+        const list = await res.json();
+        const box = document.getElementById('feedbackList');
+        if (!list.length) { box.innerHTML = '<div class="empty"><p>暂无反馈</p></div>'; return; }
+        const typeMap = { bug: '问题反馈', suggest: '功能建议', other: '其他' };
+        const typeColor = { bug: 'pill-danger', suggest: 'pill-info', other: 'pill-mute' };
+        box.innerHTML = list.map(f => `
+          <div class="record" style="align-items:flex-start;">
+            <div class="icon-box"><span data-icon="mail"></span></div>
+            <div class="body">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span class="title">${escapeHtml(f.username || '匿名')}</span>
+                <span class="pill ${typeColor[f.type] || 'pill-mute'}" style="font-size:11px;">${typeMap[f.type] || '其他'}</span>
+                <span style="font-size:12px;color:var(--text-4);">${f.created_at ? f.created_at.slice(0, 16).replace('T', ' ') : ''}</span>
+              </div>
+              <div style="margin-top:6px;color:var(--text-2);font-size:14px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(f.content)}</div>
+            </div>
+            <button class="icon-btn" onclick="deleteFeedback(${f.id})" title="删除"><span data-icon="trash"></span></button>
+          </div>`).join('');
+        renderIcons();
+      } catch (e) {}
+    }
+
+    async function deleteFeedback(id) {
+      if (!confirm('确定删除该反馈？')) return;
+      try {
+        const res = await fetch(`/api/admin/feedback/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) { loadFeedback(); toast('已删除', 'success'); }
+        else { toast(data.error || '删除失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 公告
+    async function loadNotice() {
+      try {
+        const res = await fetch('/api/admin/notice');
+        if (res.ok) {
+          const n = await res.json();
+          document.getElementById('noticeContent').value = n.content || '';
+        }
+      } catch (e) {}
+    }
+    async function saveNotice() {
+      const content = document.getElementById('noticeContent').value.trim();
+      try {
+        const res = await fetch('/api/admin/notice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
+        const data = await res.json();
+        if (data.success) { toast('公告已保存', 'success'); }
+        else { toast(data.error || '保存失败', 'error'); }
+      } catch (e) { toast('网络错误', 'error'); }
+    }
+
+    // 标签页切换
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        ['users', 'downloads', 'shop', 'vip', 'feedback', 'notice'].forEach(name => {
+          document.getElementById(`tab-${name}`).classList.add('hidden');
+        });
+        document.getElementById(`tab-${tab.dataset.tab}`).classList.remove('hidden');
+      });
+    });
+
+    function logout() { fetch('/api/logout', { method: 'POST' }).then(() => location.href = '/login'); }
+
+    (async () => {
+      await loadUser();
+      if (!currentUser) return;
+      loadStats();
+      loadUsers();
+      loadDownloads();
+      loadShop();
+      loadVip();
+      loadFeedback();
+      loadNotice();
+      setInterval(loadStats, 30000);
+    })();
+  </script>
+</body>
+</html>
